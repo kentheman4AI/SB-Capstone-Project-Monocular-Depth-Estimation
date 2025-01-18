@@ -68,6 +68,11 @@ function processFolder(folder) {
 
             // Close the document without saving changes
             doc.close(SaveOptions.DONOTSAVECHANGES);
+
+            // Delete the original file after processing
+            if (file.exists) {
+                file.remove();
+            }
         }
     }
 }
