@@ -1,0 +1,3 @@
+Due to the size of the fine-tuned Depth Anything .pth checkpoint files, they are stored in Google Drive at:
+
+https://drive.google.com/drive/folders/142jnUpg4--ttIkyC5ieJI-l9wpxxzxQ5?usp=drive_link 

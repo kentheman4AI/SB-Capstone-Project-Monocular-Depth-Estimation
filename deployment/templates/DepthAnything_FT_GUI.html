@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Depth Estimation Web App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .section {
+      margin-bottom: 25px;
+      padding: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+    }
+    .section h2 {
+      margin-top: 0;
+    }
+    img {
+      max-width: 100%;
+      height: auto;
+      border: 1px solid #888;
+      margin-top: 10px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+    }
+    .links a {
+      margin-right: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Depth Estimation Web Application</h1>
+    
+    <!-- Section 1: Upload Image -->
+    <div class="section">
+      <h2>1. Upload Image</h2>
+      <input type="file" id="fileInput" accept="image/*">
+      <div>
+        <h3>Uploaded Image:</h3>
+        <img id="uploadedImage" alt="Your uploaded image will appear here">
+      </div>
+    </div>
+    
+    <!-- Section 2: Select Pre-Trained or Fine-Tuned -->
+    <div class="section">
+      <h2>2. Choose Pre-Trained or Fine-Tuned Model</h2>
+      <button id="btnPretrained">Pre-Trained</button>
+      <button id="btnFinetuned">Fine-Tuned</button>
+      <p>Selected Pre-Trained or Fine-Tuned: <span id="selectedPretrained">Fine-Tuned</span></p>
+    </div>
+
+    <!-- Section 3: Select Feature -->
+    <div class="section">
+      <h2>3. Select Feature</h2>
+      <button id="btnMirror">Mirror</button>
+      <button id="btnIndoor">Indoor Art</button>
+      <button id="btnOutdoor">Outdoor Art</button>
+      <p>Selected Feature: <span id="selectedFeature">Mirror</span></p>
+    </div>
+    
+    <!-- Section 4: Select Depth Map Representation -->
+    <div class="section">
+      <h2>4. Select Depth Map Representation</h2>
+      <button id="btnGrayscale">Grayscale</button>
+      <button id="btnColormap">Colormap</button>
+      <p>Selected Representation: <span id="selectedRep">Grayscale</span></p>
+    </div>
+    
+    <!-- Section 5: Process Image -->
+    <div class="section">
+      <h2>5. Process Image</h2>
+      <button id="submitBtn">Submit for Depth Estimation</button>
+    </div>
+    
+    <!-- Section 6: Output -->
+    <div class="section">
+      <h2>6. Depth Map Output</h2>
+      <div>
+        <h3>Depth Map:</h3>
+        <img id="resultImage" alt="Depth map output will appear here">
+      </div>
+      <button id="downloadBtn" style="display:none;">Download Depth Map</button>
+    </div>
+    
+    <!-- Section 7: Resource Links -->
+    <div class="section links">
+      <h2>7. Resources</h2>
+      <p>
+        <a href="https://depth-anything-v2.github.io/" target="_blank">GitHub Repository Depth Anything v2</a>
+	<a href="https://github.com/kentheman4AI/SB-Capstone-Project-Monocular-Depth-Estimation.git" target="_blank">GitHub Repository Fine-Tuned Depth Anything v2</a>
+        <a href="https://drive.google.com/drive/folders/13CHoZTuzNndxE6IebUojrV4QNfY8RgOE?usp=sharing" target="_blank">Google Cloud Dataset Repository</a>
+      </p>
+    </div>
+  </div>
+  
+  <script>
+    // Global variables to store selected options with defaults
+    let selectedPretrained = "false";      // Default Pre-trained is False    
+    let selectedFeature = "mirror";      // Default feature is "mirror"
+    let selectedRepresentation = "grayscale";  // Default representation is "grayscale"
+    
+    // Update the selection for Pre-Trained or Fine-Tuned when any of the two buttons are clicked
+    document.getElementById('btnPretrained').addEventListener('click', () => {
+      selectedPretrained = "true";
+      document.getElementById('selectedPretrained').innerText = "Pre-Trained";
+    });
+    document.getElementById('btnFinetuned').addEventListener('click', () => {
+      selectedPretrained = "false";
+      document.getElementById('selectedPretrained').innerText = "Fine-Tuned";
+    });
+
+    // Update the selected feature when any of the three feature buttons are clicked
+    document.getElementById('btnMirror').addEventListener('click', () => {
+      selectedFeature = "mirror";
+      document.getElementById('selectedFeature').innerText = "Mirror";
+    });
+    document.getElementById('btnIndoor').addEventListener('click', () => {
+      selectedFeature = "indoor art";
+      document.getElementById('selectedFeature').innerText = "Indoor Art";
+    });
+    document.getElementById('btnOutdoor').addEventListener('click', () => {
+      selectedFeature = "outdoor art";
+      document.getElementById('selectedFeature').innerText = "Outdoor Art";
+    });
+    
+    // Update the selected representation when buttons are clicked
+    document.getElementById('btnGrayscale').addEventListener('click', () => {
+      selectedRepresentation = "grayscale";
+      document.getElementById('selectedRep').innerText = "Grayscale";
+    });
+    document.getElementById('btnColormap').addEventListener('click', () => {
+      selectedRepresentation = "colormap";
+      document.getElementById('selectedRep').innerText = "Colormap";
+    });
+    
+    // Display the uploaded image in the "Uploaded Image" window
+    document.getElementById('fileInput').addEventListener('change', function(event) {
+      const file = event.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          document.getElementById('uploadedImage').src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    // Function to send the POST request to the Cloud Run API endpoint
+    document.getElementById('submitBtn').addEventListener('click', async () => {
+      const fileInput = document.getElementById('fileInput');
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select an image file.");
+        return;
+      }
+      
+      // Prepare form data with the file and selected options
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('augment', selectedFeature);
+      formData.append('otype', selectedRepresentation);
+      formData.append('pretrained', selectedPretrained);
+      
+      try {
+	// Instead of using a hard-coded URL:
+	// const response = await fetch("http://localhost:5000/infer", { ... });
+
+	// Use a relative URL:
+	const response = await fetch("/infer", {
+    	  method: "POST",
+    	  body: formData
+	});
+        
+        if (!response.ok) {
+          throw new Error("Server error: " + response.statusText);
+        }
+        
+        // Convert the response (an image) into a blob
+        const blob = await response.blob();
+        const imageUrl = URL.createObjectURL(blob);
+        document.getElementById('resultImage').src = imageUrl;
+        
+        // Setup the download button for the depth map image
+        const downloadBtn = document.getElementById('downloadBtn');
+        downloadBtn.style.display = "inline-block";
+        downloadBtn.onclick = () => {
+          const a = document.createElement("a");
+          a.href = imageUrl;
+          a.download = "depth_map.png";
+          a.click();
+        };
+      } catch (error) {
+        console.error("Error during inference:", error);
+        alert("Error during inference: " + error.message);
+      }
+    });
+  </script>
+</body>
+</html>

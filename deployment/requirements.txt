@@ -1,0 +1,7 @@
+matplotlib
+open3d
+torch
+torchvision
+Flask>=2.2.0
+opencv-python-headless>=4.7.0.72
+numpy>=1.21.0
