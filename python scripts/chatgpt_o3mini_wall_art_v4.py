@@ -117,9 +117,10 @@ def process_manifest(datasource,manifest_path):
     return manifest
 
 def cartoonize_image(img_path):
-    
-    style = np.random.randint(1,6)
-    if style==1:
+    style = np.random.randint(0, 12)
+    if style<=5:
+        return cv2.imread(img_path)
+    elif style<=7:
         img = cv2.imread(img_path)
         """Apply OpenCV stylization to cartoonize an image."""
         sigma_s = 150
@@ -127,12 +128,11 @@ def cartoonize_image(img_path):
         return cv2.stylization(img, sigma_s=sigma_s, sigma_r=sigma_r)
     else:
         # Call fast_neural_style using the current Python interpreter.
-        neural_models = ['none','none','mosaic','rain_princess','udnie','candy']
+        neural_models = ['none', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'mosaic', 'rain_princess', 'udnie', 'candy']
         neural_model = neural_models[style]
         neural_style_path = r'C:\Users\kenne\Projects\AI\scripts\main\utils\\'
         model = f'{neural_style_path}saved_models/{neural_model}.pth'
         np_img = stylize(model, img_path, 0)
-
         return np_img
 
 def stylize(model, content_image, cuda):
@@ -342,10 +342,19 @@ def process_images_and_depth_maps(datasource,manifest_path,manifest,paintings_fo
 
         base_image_name = os.path.splitext(os.path.basename(input_image_path))[0]
         base_depth_name, depth_ext = os.path.splitext(os.path.basename(input_depth_path))
+        # Normalize the path to handle mixed slashes
+        normalized_path = os.path.normpath(input_image_path)
+        # Split the path into components
+        path_parts = normalized_path.split(os.sep)
         if datasource == "hypersim":
-            base_image_name = ".".join(base_image_name.split(".")[:3])
-            base_depth_name = ".".join(base_depth_name.split(".")[:3])
-            prepend_name = os.path.normpath(input_image_path).split(os.sep)[6] + "."
+            base_image_name = "".join(base_image_name.split(".")[:3])
+            base_depth_name = "".join(base_depth_name.split(".")[:3])
+            # Extract the desired parts
+            scene = path_parts[6].replace("_", "")  # "ai_001_002"
+            camera = path_parts[8].replace("_final_preview", "")  # "scene_cam_00"
+            # Combine the extracted parts
+            prepend_name = f"{scene.replace("_", "")}_{camera.replace("_", "")}_"
+            # prepend_name = os.path.normpath(input_image_path).split(os.sep)[6] + "."
         else:
             # Normalize the path to handle mixed slashes
             normalized_path = os.path.normpath(input_image_path)
@@ -354,8 +363,9 @@ def process_images_and_depth_maps(datasource,manifest_path,manifest,paintings_fo
             # Extract the desired parts
             scene = path_parts[7]  # "Scene01"
             angle = path_parts[8].replace("-", "")  # "15degleft"
+            camera = path_parts[11].replace("_", "")  # "Camera_1"
             # Combine the extracted parts
-            prepend_name = f"{scene}_{angle}_"
+            prepend_name = f"{scene}_{angle}_{camera}_"
 
         # Paths for output image and depth map
         output_image_path = os.path.join(output_image_folder, f"{prepend_name}{base_image_name}_WP.jpg")
@@ -403,11 +413,12 @@ def process_images_and_depth_maps(datasource,manifest_path,manifest,paintings_fo
             bkg_h, bkg_w = img.shape[:2]
             car_h, car_w = car.shape[:2]
 
-            # ----- Step 2: Resize car so that its width and height are no more than 90% of bkg's dimensions -----
+            # ----- Step 2: Resize car so that its width and height are no more than 80% of bkg's dimensions -----
             # Compute a scale factor so that both width and height do not exceed 80% of background's dimensions.
-            scale_w = 0.9 * bkg_w / car_w
-            scale_h = 0.9 * bkg_h / car_h
-            scale = min(scale_w, scale_h, 1.0)  # Do not enlarge if already small.
+            scale_w = 0.8 * bkg_w / car_w
+            scale_h = 0.8 * bkg_h / car_h
+            scale = min(scale_w, scale_h)  # minimum of one removed to allow upscaling
+            #scale = min(scale_w, scale_h, 1.0)  # Do not enlarge if already small.
 
             new_w = int(car_w * scale)
             new_h = int(car_h * scale)
@@ -536,10 +547,14 @@ def process_images_and_depth_maps(datasource,manifest_path,manifest,paintings_fo
             # Save the updated depth map as a PNG file
             if datasource == "hypersim":
                 updated_depth = hypersim_distance_to_depth(updated_depth_data)
-                normalized_depth_map = cv2.normalize(updated_depth, None, 0, 255, cv2.NORM_MINMAX)
+                normalized_depth_map = 255 - cv2.normalize(updated_depth, None, 0, 255,
+                                                           cv2.NORM_MINMAX)  # dark is 255:maximum depth, light is 0:minimum depth
+                # normalized_depth_map = cv2.normalize(updated_depth, None, 0, 255, cv2.NORM_MINMAX) # dark is 0:minimum depth, light is 255:maximum depth
                 depth_map_png = normalized_depth_map.astype(np.uint8)
         else:
-            depth_norm = cv2.normalize(updated_depth_data, None, 0, 65535, cv2.NORM_MINMAX)
+            depth_norm = 65535 - cv2.normalize(updated_depth_data, None, 0, 65535,
+                                               cv2.NORM_MINMAX)  # dark is 65535:maximum depth, light is 0:minimum depth
+            # depth_norm = cv2.normalize(updated_depth_data, None, 0, 65535, cv2.NORM_MINMAX) # dark is 0:minimum depth, light is 65535:maximum depth
             depth_map_png = depth_norm.astype(np.uint16)
         cv2.imwrite(output_depth_png_path, depth_map_png)
 
